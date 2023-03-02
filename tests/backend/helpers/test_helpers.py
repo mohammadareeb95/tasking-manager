@@ -332,7 +332,7 @@ def create_canned_campaign(
 
 def create_canned_interest(name="test_interest") -> Interest:
     """Returns test interest without writing to db"""
-    test_interest = InterestService.create(name=name)
+    test_interest = InterestService.create(interest_name=name)
     return test_interest
 
 
