@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import * as iD from '@hotosm/id';
 import '@hotosm/id/dist/iD.css';
 
 import { OSM_CLIENT_ID, OSM_CLIENT_SECRET, OSM_REDIRECT_URI, OSM_SERVER_URL } from '../config';
 
-export default function Editor({ setDisable, comment, presets, imagery, gpxUrl }) {
+export default function Editor({ setDisable, comment, presets, imagery, gpxUrl, onEnterSave }) {
   const dispatch = useDispatch();
   const session = useSelector((state) => state.auth.session);
   const iDContext = useSelector((state) => state.editor.context);
   const locale = useSelector((state) => state.preferences.locale);
   const [customImageryIsSet, setCustomImageryIsSet] = useState(false);
+  const refOnSave = useRef(false);
   const windowInit = typeof window !== undefined;
   const customSource =
     iDContext && iDContext.background() && iDContext.background().findSource('custom');
@@ -98,13 +99,27 @@ export default function Editor({ setDisable, comment, presets, imagery, gpxUrl }
       const thereAreChanges = (changes) =>
         changes.modified.length || changes.created.length || changes.deleted.length;
 
-      iDContext.history().on('change', () => {
-        if (thereAreChanges(iDContext.history().changes())) {
-          setDisable(true);
-        } else {
-          setDisable(false);
-        }
-      });
+      iDContext.history()
+        .on('change', () => {
+          if (!refOnSave.current && onEnterSave) {
+            iDContext
+              .on('enter.save', () => {
+                if (iDContext.mode().id == 'save') {
+                  const changes = iDContext.history().changes();
+                  onEnterSave (
+                    iDContext.changeset.osmChangeJXON(changes)
+                  );
+                }
+              });
+            refOnSave.current = true;
+          }
+
+          if (thereAreChanges(iDContext.history().changes())) {
+            setDisable(true);
+          } else {
+            setDisable(false);
+          }
+        })
     }
   }, [session, iDContext, setDisable, presets, locale, gpxUrl]);
 
